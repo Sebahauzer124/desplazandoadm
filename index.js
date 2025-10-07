@@ -17,16 +17,24 @@ app.use(bodyParser.json({ limit: '50mb' }));
 async function extractTextFromBase64PDF(base64PDF) {
     try {
         console.log("Recibiendo PDF base64...");
+
         // Limpiar prefijo si existe
         if (base64PDF.startsWith("data:")) {
             base64PDF = base64PDF.split(",")[1];
         }
 
+        // Quitar espacios o saltos de línea
+        base64PDF = base64PDF.replace(/\s/g, '');
+
+        console.log("Convertiendo Base64 a Buffer...");
         const pdfBuffer = Buffer.from(base64PDF, 'base64');
 
         console.log("Extrayendo texto del PDF...");
         const data = await pdf(pdfBuffer);
-        console.log("Texto extraído con éxito.");
+
+        console.log("Texto extraído con éxito. Primeros 200 caracteres:");
+        console.log(data.text.substring(0, 200));
+
         return data.text;
     } catch (err) {
         console.error("Error extrayendo texto del PDF:", err);
