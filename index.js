@@ -34,13 +34,13 @@ async function extractTextFromBase64PDF(base64PDF) {
         // Validar si realmente es un PDF
         if (pdfBuffer.toString('utf8', 0, 4) !== '%PDF') {
             console.error("El Base64 recibido no corresponde a un PDF válido.");
-            // Guardar temporal para debug
             fs.writeFileSync(path.join(__dirname, 'debug_invalid.pdf'), pdfBuffer);
             return null;
         }
 
-        // Guardar PDF temporal para depuración (opcional)
-        fs.writeFileSync(path.join(__dirname, 'debug.pdf'), pdfBuffer);
+        // Guardar PDF temporal para depuración
+        const debugPath = path.join(__dirname, 'debug.pdf');
+        fs.writeFileSync(debugPath, pdfBuffer);
 
         console.log("Extrayendo texto del PDF...");
         const data = await pdf(pdfBuffer);
@@ -72,6 +72,16 @@ app.post('/extract-pdf-text', async (req, res) => {
     }
 
     res.json({ texto });
+});
+
+// NUEVA RUTA: descargar debug.pdf
+app.get('/download-debug', (req, res) => {
+    const debugPath = path.join(__dirname, 'debug.pdf');
+    if (fs.existsSync(debugPath)) {
+        res.download(debugPath, 'debug.pdf');
+    } else {
+        res.status(404).send('debug.pdf no encontrado');
+    }
 });
 
 // Iniciar servidor
