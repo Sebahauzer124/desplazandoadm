@@ -4,16 +4,23 @@ const bodyParser = require('body-parser');
 const pdf = require('pdf-parse');
 
 const app = express();
-const PORT = 8080;
+const PORT = process.env.PORT || 8080;
 
 // Middleware para recibir JSON grande (PDF en base64 puede ser pesado)
 app.use(bodyParser.json({ limit: '50mb' }));
 
 /**
- * Función que convierte Base64 de PDF a texto
+ * Convierte Base64 de PDF a texto
+ * @param {string} base64Data - PDF en Base64
+ * @returns {Promise<string|null>} - Texto extraído o null si falla
  */
 async function extractTextFromBase64PDF(base64Data) {
     try {
+        // Limpiar prefijo si existe
+        if (base64Data.startsWith("data:")) {
+            base64Data = base64Data.split(",")[1];
+        }
+
         const pdfBuffer = Buffer.from(base64Data, 'base64');
         const data = await pdf(pdfBuffer);
         return data.text;
