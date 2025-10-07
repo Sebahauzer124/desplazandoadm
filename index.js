@@ -1,36 +1,43 @@
 // server.js
 const express = require('express');
 const bodyParser = require('body-parser');
-const pdf = require('pdf-parse');
+const { fromBuffer } = require('pdf2pic'); // convierte PDF a imágenes
+const Tesseract = require('tesseract.js');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Middleware para recibir JSON grande (PDF en base64 puede ser pesado)
+// Middleware para JSON grande
 app.use(bodyParser.json({ limit: '50mb' }));
 
 /**
- * Convierte Base64 de PDF a texto
- * @param {string} base64Data - PDF en Base64
- * @returns {Promise<string|null>} - Texto extraído o null si falla
+ * Convierte un PDF en base64 a texto usando OCR
+ * @param {string} base64PDF - PDF en Base64
  */
-async function extractTextFromBase64PDF(base64Data) {
+async function extractTextFromBase64PDF(base64PDF) {
     try {
         // Limpiar prefijo si existe
-        if (base64Data.startsWith("data:")) {
-            base64Data = base64Data.split(",")[1];
+        if (base64PDF.startsWith("data:")) {
+            base64PDF = base64PDF.split(",")[1];
         }
 
-        const pdfBuffer = Buffer.from(base64Data, 'base64');
-        const data = await pdf(pdfBuffer);
-        return data.text;
+        const pdfBuffer = Buffer.from(base64PDF, 'base64');
+
+        // Convertimos PDF a imágenes (una por página)
+        const converter = fromBuffer(pdfBuffer, { density: 150, format: "png" });
+        const images = await converter(1); // si querés todas las páginas hay que iterar
+
+        // Aplicamos OCR sobre la imagen resultante
+        const { data: { text } } = await Tesseract.recognize(images.path, 'spa', { logger: m => console.log(m) });
+
+        return text;
     } catch (err) {
         console.error("Error extrayendo texto del PDF:", err);
         return null;
     }
 }
 
-// Ruta POST para recibir PDF en base64
+// Ruta POST
 app.post('/extract-pdf-text', async (req, res) => {
     const { base64 } = req.body;
 
@@ -47,7 +54,4 @@ app.post('/extract-pdf-text', async (req, res) => {
     res.json({ texto });
 });
 
-// Iniciar servidor
-app.listen(PORT, () => {
-    console.log(`Servidor corriendo en http://localhost:${PORT}`);
-});
+app.listen(PORT, () => console.log(`Servidor corriendo en http://localhost:${PORT}`));
